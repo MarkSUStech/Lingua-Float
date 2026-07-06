@@ -13,7 +13,9 @@
 
 ## 本地词典
 
-项目支持 [ECDICT](https://github.com/skywind3000/ECDICT) 英汉词典。由于词典原始文件和生成索引较大，仓库默认不提交：
+项目支持 [ECDICT](https://github.com/skywind3000/ECDICT) 英汉词典。ECDICT 是开源英中双解词典数据库，使用 CSV 存储，字段包含单词、音标、英文释义、中文释义、词性、Collins 星级、Oxford 核心词标记、考试标签和词形变化等。
+
+为了避免仓库过大，以下文件默认不提交到 Git：
 
 - `data/ecdict.csv`
 - `data/lemma.en.txt`
@@ -21,13 +23,166 @@
 - `dist/dict/`
 - `android/app/src/main/assets/public/`
 
-许可文件保留在 `data/ECDICT_LICENSE`。如需重新生成本地词典，把 ECDICT 的 `ecdict.csv` 和 lemma 文件放入 `data/` 后运行：
+许可文件保留在 `data/ECDICT_LICENSE`。界面里显示的 Collins/Oxford 标记来自 ECDICT 的星级和核心词字段，不包含商业词典全文。
+
+### 下载词典
+
+推荐下载两个文件：
+
+- `ecdict.csv`：主词典数据。
+- `lemma.en.txt`：词形还原数据，例如 `gave -> give`、`taken -> take`，用于查变形词。
+
+方式一：直接下载单个文件。
 
 ```powershell
+New-Item -ItemType Directory -Force data
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/skywind3000/ECDICT/master/ecdict.csv" -OutFile "data/ecdict.csv"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/skywind3000/ECDICT/master/lemma.en.txt" -OutFile "data/lemma.en.txt"
+```
+
+方式二：下载整个 ECDICT 仓库 ZIP。
+
+1. 打开 <https://github.com/skywind3000/ECDICT>
+2. 点击 `Code` -> `Download ZIP`
+3. 解压后复制：
+   - `ECDICT-master/ecdict.csv` 到本项目的 `data/ecdict.csv`
+   - `ECDICT-master/lemma.en.txt` 到本项目的 `data/lemma.en.txt`
+
+最终目录应该长这样：
+
+```text
+translate-float/
+  data/
+    ECDICT_LICENSE
+    ecdict.csv
+    lemma.en.txt
+```
+
+### 导入并生成索引
+
+下载好词典后，在项目根目录运行：
+
+```powershell
+npm install
 npm run dict:build
 ```
 
-界面里显示的 Collins/Oxford 标记来自 ECDICT 的星级和核心词字段，不包含商业词典全文。
+脚本会读取：
+
+- `data/ecdict.csv`
+- `data/lemma.en.txt`
+
+并生成：
+
+```text
+public/dict/
+  index.json
+  buckets/
+    a.json
+    b.json
+    ...
+    _.json
+  forms/
+    a.json
+    b.json
+    ...
+```
+
+生成逻辑：
+
+- `buckets/`：按单词首个英文字母分桶，运行时只加载需要的桶，避免一次性加载大词典。
+- `forms/`：按变形词分桶，用于把 `running`、`gave`、`teeth` 等还原到原词再查。
+- `index.json`：记录生成时间、词条数量、字段说明和来源。
+
+生成成功后终端会显示类似：
+
+```text
+Built ECDICT buckets: 770000/770000 entries
+```
+
+具体数量以 ECDICT 当前版本为准。
+
+### 让 Windows 使用词典
+
+生成 `public/dict/` 后，重新构建前端：
+
+```powershell
+npm run build
+```
+
+构建后会把词典复制到：
+
+```text
+dist/dict/
+```
+
+Windows 桌面版在生产模式下读取 `dist/dict/`。如果你正在运行 Lingua Float，需要退出并重新打开应用，新的词典才会生效。
+
+### 让 Android 使用词典
+
+先生成词典并构建：
+
+```powershell
+npm run dict:build
+npm run build
+```
+
+再同步到 Android 工程：
+
+```powershell
+npm run sync:android
+```
+
+同步后词典会进入：
+
+```text
+android/app/src/main/assets/public/dict/
+```
+
+然后用 Android Studio 重新运行，或打 debug 包：
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+### 更新词典
+
+如果 ECDICT 发布了新数据，重复以下流程即可：
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/skywind3000/ECDICT/master/ecdict.csv" -OutFile "data/ecdict.csv"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/skywind3000/ECDICT/master/lemma.en.txt" -OutFile "data/lemma.en.txt"
+npm run dict:build
+npm run build
+npm run sync:android
+```
+
+更新后建议重启 Windows 应用，Android 端需要重新安装或运行新的构建。
+
+### 常见问题
+
+如果提示找不到 `data/ecdict.csv` 或 `data/lemma.en.txt`：
+
+- 确认文件名全部小写。
+- 确认文件放在项目根目录下的 `data/`，不是 `data/ECDICT-master/`。
+- 确认当前终端路径是项目根目录，也就是包含 `package.json` 的目录。
+
+如果单词查不到：
+
+- 先确认 `public/dict/index.json` 已生成。
+- 重新运行 `npm run build`，确保 Windows 读取的 `dist/dict/` 已更新。
+- Android 端还需要运行 `npm run sync:android`。
+
+如果 Git 状态里出现大量词典 JSON：
+
+- 这是生成物，正常不提交。
+- `.gitignore` 已忽略 `public/dict/`、`dist/` 和 Android assets。
+- 如已误加入暂存区，可运行：
+
+```powershell
+git restore --staged public/dict dist android/app/src/main/assets/public
+```
 
 ## Windows 使用
 

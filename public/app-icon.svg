@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Lingua Float icon">
+  <rect width="256" height="256" rx="58" fill="#10242b"/>
+  <path d="M71 50h118a22 22 0 0 1 22 22v53a22 22 0 0 1-22 22h-68l-33 28v-28H71a22 22 0 0 1-22-22V72a22 22 0 0 1 22-22Z" fill="#f5fbfa"/>
+  <path d="M76 176h109a20 20 0 0 1 20 20v7a20 20 0 0 1-20 20H76a20 20 0 0 1-20-20v-7a20 20 0 0 1 20-20Z" fill="#25a899"/>
+  <path d="M93 85h28v54H93z" fill="#10242b"/>
+  <path d="M93 123h69v16H93z" fill="#10242b"/>
+  <path d="M142 82h40v16h-40zM142 110h56v16h-56z" fill="#25a899"/>
+</svg>
